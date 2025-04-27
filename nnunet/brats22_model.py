@@ -66,6 +66,22 @@ def get_output_padding(kernel_size, stride, padding):
     out_padding = tuple(int(p) for p in out_padding_np)
     return out_padding if len(out_padding) > 1 else out_padding[0]
 
+class SELayer3D(nn.Module):
+    """Channel Squeeze-and-Excitation for 3D features."""
+    def __init__(self, channel, reduction=4):
+        super(SELayer3D, self).__init__()
+        self.avg_pool = nn.AdaptiveAvgPool3d(1)
+        self.fc = nn.Sequential(
+            nn.Linear(channel, channel // reduction, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(channel // reduction, channel, bias=True),
+            nn.Sigmoid()
+        )
+    def forward(self, x):
+        b, c, d, h, w = x.size()
+        y = self.avg_pool(x).view(b, c)                   # squeeze
+        y = self.fc(y).view(b, c, 1, 1, 1)               # excite
+        return x * y                                     # scale
 
 class InputBlock(nn.Module):
     def __init__(self, in_channels, out_channels, **kwargs):
@@ -103,10 +119,12 @@ class ConvBlock(nn.Module):
         super(ConvBlock, self).__init__()
         self.conv1 = ConvLayer(in_channels, out_channels, kernel_size, stride, **kwargs)
         self.conv2 = ConvLayer(out_channels, out_channels, kernel_size, 1, **kwargs)
+        self.se    = SELayer3D(out_channels, reduction=4)
 
     def forward(self, x):
         x = self.conv1(x)
         x = self.conv2(x)
+        x = self.se(x)   
         return x
 
 
@@ -114,11 +132,13 @@ class UpsampleBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, **kwargs):
         super(UpsampleBlock, self).__init__()
         self.conv_block = ConvBlock(out_channels + in_channels, out_channels, kernel_size, 1, **kwargs)
+        self.se         = SELayer3D(out_channels, reduction=4)
 
     def forward(self, x, x_skip):
         x = nn.functional.interpolate(x, scale_factor=2, mode="trilinear", align_corners=True)
         x = torch.cat((x, x_skip), dim=1)
         x = self.conv_block(x)
+        x = self.se(x)
         return x
 
 
