@@ -95,7 +95,7 @@ class NNUnet(pl.LightningModule):
         self.train_loss.append(loss.item())
         return loss
 
-    def on_validation_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx):
         if self.current_epoch < self.args.skip_first_n_eval:
             return None
         img, lbl = batch["image"], batch["label"]
@@ -106,6 +106,7 @@ class NNUnet(pl.LightningModule):
             meta, lbl = batch["meta"][0].cpu().detach().numpy(), batch["orig_lbl"]
             pred = nn.functional.interpolate(pred, size=tuple(meta[3]), mode="trilinear", align_corners=True)
         self.dice.update(pred, lbl[:, 0], loss)
+        print(f"Validation step loss: {loss}")
 
     def test_step(self, batch, batch_idx):
         if self.args.exec_mode == "evaluate":
@@ -254,7 +255,7 @@ class NNUnet(pl.LightningModule):
     def round(self, tensor):
         return round(torch.mean(tensor).item(), 2)
 
-    def on_validation_epoch_end(self, outputs):
+    def on_validation_epoch_end(self):
         if self.current_epoch < self.args.skip_first_n_eval:
             self.log("dice", 0.0, sync_dist=False)
             self.dice.reset()
@@ -296,6 +297,7 @@ class NNUnet(pl.LightningModule):
             metrics["train_loss"] = round(sum(self.train_loss) / len(self.train_loss), 4)
             metrics["val_loss"] = round(1 - self.best_mean.item() / 100, 4)
             metrics["Epoch"] = self.best_epoch
+            print(metrics)
             self.dllogger.log_metrics(step=(), metrics=metrics)
             self.dllogger.flush()
 
