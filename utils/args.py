@@ -50,6 +50,7 @@ def get_main_args(strings=None):
     arg("--logname", type=str, default="logs.json", help="Name of dlloger output")
     arg("--task", type=str, default="01", help="Task number. MSD uses numbers 01-10")
     arg("--gpus", type=non_negative_int, default=1, help="Number of gpus")
+    arg('--multiscale',action='store_true', default=False, help='Enable multiscale processing (default: False)')
     arg("--nodes", type=non_negative_int, default=1, help="Number of nodes")
     arg("--learning_rate", type=float, default=0.0008, help="Learning rate")
     arg("--gradient_clip_val", type=float, default=0, help="Gradient clipping norm value")
