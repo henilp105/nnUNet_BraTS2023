@@ -18,7 +18,7 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-from apex.optimizers import FusedAdam, FusedSGD
+# from apex.optimizers import FusedAdam, FusedSGD
 from data_loading.data_module import get_data_path, get_test_fnames
 from monai.inferers import sliding_window_inference
 from monai.networks.nets import DynUNet
@@ -109,7 +109,7 @@ class NNUnet(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         if self.args.exec_mode == "evaluate":
-            return self.validation_step(batch, batch_idx)
+            return self.on_validation_step(batch, batch_idx)
         img = batch["image"]
         img = self.convert_ncdhw_to_ndhwc(img)
         if self.args.benchmark:
@@ -301,8 +301,8 @@ class NNUnet(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = {
-            "sgd": FusedSGD(self.parameters(), lr=self.learning_rate, momentum=self.args.momentum),
-            "adam": FusedAdam(self.parameters(), lr=self.learning_rate, weight_decay=self.args.weight_decay),
+            "sgd": torch.optim.SGD(self.parameters(), lr=self.learning_rate, momentum=self.args.momentum),
+            "adam": torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.args.weight_decay),
         }[self.args.optimizer.lower()]
 
         if self.args.scheduler:
