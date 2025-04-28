@@ -95,7 +95,7 @@ class NNUnet(pl.LightningModule):
         self.train_loss.append(loss.item())
         return loss
 
-    def validation_step(self, batch, batch_idx):
+    def on_validation_step(self, batch, batch_idx):
         if self.current_epoch < self.args.skip_first_n_eval:
             return None
         img, lbl = batch["image"], batch["label"]
@@ -254,7 +254,7 @@ class NNUnet(pl.LightningModule):
     def round(self, tensor):
         return round(torch.mean(tensor).item(), 2)
 
-    def validation_epoch_end(self, outputs):
+    def on_validation_epoch_end(self, outputs):
         if self.current_epoch < self.args.skip_first_n_eval:
             self.log("dice", 0.0, sync_dist=False)
             self.dice.reset()
