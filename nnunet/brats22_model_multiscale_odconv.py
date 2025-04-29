@@ -82,12 +82,14 @@ class InputBlock(nn.Module):
         self.conv2 = get_conv(out_channels, out_channels, 3, 1)
         self.norm = get_norm(kwargs["norm"], out_channels)
         self.relu = nn.ReLU(inplace=True)
+        self.se    = SELayer3D(out_channels, reduction=4)
 
     def forward(self, x):
         x = self.conv1(x)
         x = self.norm(x)
         x = self.relu(x)
         x = self.conv2(x)
+        x = self.se(x)
         x = self.relu(x)
         return x
 
@@ -104,6 +106,23 @@ class ConvLayer(nn.Module):
         x = self.conv(x)
         x = self.relu(x)
         return x
+
+class SELayer3D(nn.Module):
+    """Channel Squeeze-and-Excitation for 3D features."""
+    def __init__(self, channel, reduction=4):
+        super(SELayer3D, self).__init__()
+        self.avg_pool = nn.AdaptiveAvgPool3d(1)
+        self.fc = nn.Sequential(
+            nn.Linear(channel, channel // reduction, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(channel // reduction, channel, bias=True),
+            nn.Sigmoid()
+        )
+    def forward(self, x):
+        b, c, d, h, w = x.size()
+        y = self.avg_pool(x).view(b, c)                   # squeeze
+        y = self.fc(y).view(b, c, 1, 1, 1)               # excite
+        return x * y                                     # scale
 
 
 class ConvBlock(nn.Module):
@@ -122,11 +141,13 @@ class UpsampleBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, conv_type="", **kwargs):
         super(UpsampleBlock, self).__init__()
         self.conv_block = ConvBlock(out_channels + in_channels, out_channels, kernel_size, 1, **kwargs)
+        self.se         = SELayer3D(out_channels, reduction=4)
 
     def forward(self, x, x_skip):
         x = nn.functional.interpolate(x, scale_factor=2, mode="trilinear", align_corners=True)
         x = torch.cat((x, x_skip), dim=1)
         x = self.conv_block(x)
+        x = self.se(x)
         return x
 
 
