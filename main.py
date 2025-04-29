@@ -100,6 +100,7 @@ def main():
     trainer = get_trainer(args, callbacks)
     if args.benchmark:
         if args.exec_mode == "train":
+            model = torch.compile(model)
             trainer.fit(model, train_dataloaders=data_module.train_dataloader())
         else:
             # warmup
@@ -108,6 +109,8 @@ def main():
             model.start_benchmark = 1
             trainer.test(model, dataloaders=data_module.test_dataloader(), verbose=False)
     elif args.exec_mode == "train":
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = model.to(device)
         trainer.fit(model, datamodule=data_module)
     elif args.exec_mode == "evaluate":
         trainer.validate(model, dataloaders=data_module.val_dataloader())

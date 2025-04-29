@@ -30,6 +30,8 @@ class DataModule(LightningDataModule):
         self.data_path = get_data_path(args)
         self.kfold = get_kfold_splitter(args.nfolds)
         self.kwargs = {
+            "num_workers": os.cpu_count(),
+            "persistent_workers": True,
             "dim": self.args.dim,
             "seed": self.args.seed,
             "gpus": self.args.gpus,
@@ -72,6 +74,10 @@ class DataModule(LightningDataModule):
         print0(f"{len(self.train_imgs)} training, {len(self.val_imgs)} validation, {len(self.test_imgs)} test examples")
 
     def train_dataloader(self):
+        self.kwargs.update({
+            "pin_memory": True,
+            "prefetch_factor": 2,    # increase to 4 if you have ample RAM
+        })
         return fetch_dali_loader(self.train_imgs, self.train_lbls, self.args.batch_size, "train", **self.kwargs)
 
     def val_dataloader(self):
