@@ -45,11 +45,7 @@ def get_trainer(args, callbacks):
         devices="-1",
         num_nodes=args.nodes,
         plugins=[AsyncCheckpointIO()],
-        strategy=DDPStrategy(
-            find_unused_parameters=False,
-            static_graph=True,
-            gradient_as_bucket_view=True,
-        ),
+        strategy="auto",
         limit_train_batches=1.0 if args.train_batches == 0 else args.train_batches,
         limit_val_batches=1.0 if args.test_batches == 0 else args.test_batches,
         limit_test_batches=1.0 if args.test_batches == 0 else args.test_batches,
