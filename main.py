@@ -20,7 +20,7 @@ from nnunet.nn_unet import NNUnet
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint, ModelSummary, RichProgressBar
 from pytorch_lightning.plugins.io import AsyncCheckpointIO
-from pytorch_lightning.strategies import DataParallelStrategy
+from pytorch_lightning.strategies import DDPStrategy
 from utils.args import get_main_args
 from utils.logger import LoggingCallback
 from utils.utils import make_empty_dir, set_cuda_devices, set_granularity, verify_ckpt_path
@@ -45,7 +45,11 @@ def get_trainer(args, callbacks):
         devices="-1",
         num_nodes=args.nodes,
         plugins=[AsyncCheckpointIO()],
-        strategy=DataParallelStrategy(),
+        strategy=DDPStrategy(
+            find_unused_parameters=False,
+            static_graph=True,
+            gradient_as_bucket_view=True,
+        ),
         limit_train_batches=1.0 if args.train_batches == 0 else args.train_batches,
         limit_val_batches=1.0 if args.test_batches == 0 else args.test_batches,
         limit_test_batches=1.0 if args.test_batches == 0 else args.test_batches,
